@@ -1,1 +1,4 @@
-module.exports = (d) => d.deploy(artifacts.require('UniswapFactory'));
+module.exports = (d) => [
+  'UniswapExchange',
+  'UniswapFactory',
+].forEach(c => d.deploy(artifacts.require(c)));

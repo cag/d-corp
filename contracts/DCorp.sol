@@ -43,8 +43,8 @@ contract DCorp is ERC20 {
     address payable exchange = uniswapFactory.createExchange(address(this));
 
     _mint(address(this), START_AMOUNT);
-    approve(exchange, START_AMOUNT);
-    IUniswapExchange(exchange).addLiquidity.value(msg.value)(0, START_AMOUNT, 0);
+    _approve(address(this), exchange, START_AMOUNT);
+    IUniswapExchange(exchange).addLiquidity.value(msg.value)(0, START_AMOUNT, uint(-1));
     lastStonkPrice = uint(1 ether).mul(exchange.balance / balanceOf(exchange));
 
     uniswapExchange = IUniswapExchange(exchange);
