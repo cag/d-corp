@@ -2,13 +2,14 @@
   <div id="app">
     <img alt="D Corp logo" src="./assets/logo.png">
     <div>
-      Block time: {{ latestBlock.timestamp }}<br>
       Current time: {{ Math.floor(now.getTime() / 1000) }}<br>
+      Block time: {{ latestBlock.timestamp }}<br>
       <br>
       My ETH: {{ user.ethBalance }}<br>
       My WETH: {{ user.wethBalance }}<br>
       My STONK: {{ user.stonkBalance }}<br>
       <br>
+      Epoch period: {{ dCorpData.EPOCH_PERIOD }}<br>
       Next poke time: {{ dCorpData.nextMarketCapPollTime }}<br>
       Last STONK price: {{ dCorpData.lastStonkPrice }}<br>
       <br>
@@ -26,15 +27,20 @@
       <strong>Sell STONK</strong><br>
       STONK sale amount: <input v-model="stonkSaleAmount"><br>
       ETH: {{ ethReturnAmount }}<br>
-      <button v-on:click="sellStonk">Sell</button>
+      <button v-on:click="sellStonk">Sell</button><br>
+      <br>
+      <strong>Propose Transaction</strong><br>
+      Available Time: <input v-model="txProposal.availableTime"><br>
+      To: <input v-model="txProposal.to"><br>
+      Value: <input v-model="txProposal.value"><br>
+      Data: <input v-model="txProposal.data"><br>
+      <button v-on:click="proposeTransaction">Propose</button>
     </div>
-    <HelloWorld />
   </div>
 </template>
 
 <script>
 import TruffleContract from '@truffle/contract'
-import HelloWorld from './components/HelloWorld.vue'
 
 const web3 = new Web3(Web3.givenProvider || "ws://localhost:7545");
 
@@ -64,9 +70,6 @@ const [
 
 export default {
   name: 'App',
-  components: {
-    HelloWorld
-  },
   data() {
     return {
       latestBlock: {},
@@ -76,6 +79,7 @@ export default {
       exchangeData: {},
       ethOfferAmount: '',
       stonkSaleAmount: '',
+      txProposal: {},
     };
   },
   computed: {
@@ -98,7 +102,6 @@ export default {
           )
         );
       } catch(e) {
-        console.error(e);
         return null;
       }
 
@@ -128,6 +131,10 @@ export default {
       );
     },
 
+    async proposeTransaction() {
+      await this.dCorp.proposeTransaction(this.txProposal);
+    },
+
     updateChainState() {
       for(const [name, balanceQ] of [
         ['ethBalance', web3.eth.getBalance(this.userAccount)],
@@ -145,10 +152,17 @@ export default {
         this.exchangeData.currentStonkPrice = web3.utils.fromWei(web3.utils.toBN(web3.utils.toWei(ethBalance)).div(web3.utils.toBN(stonkBalance)));
       }, console.error);
 
-      this.dCorp.nextMarketCapPollTime().then(
-        t => this.dCorpData.nextMarketCapPollTime = t,
-        console.error,
-      );
+      for(const prop of [
+        'EPOCH_PERIOD',
+        'startTime',
+        'nextMarketCapPollTime',
+      ]) {
+        this.dCorp[prop]().then(
+          t => this.dCorpData[prop] = t,
+          console.error,
+        );
+      }
+
       this.dCorp.lastStonkPrice().then(
         p => this.dCorpData.lastStonkPrice = web3.utils.fromWei(p),
         console.error,

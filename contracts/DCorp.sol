@@ -28,7 +28,7 @@ contract DCorp is ERC20 {
   FPMMDeterministicFactory public fpmmFactory;
 
   uint constant START_AMOUNT = 100 ether;
-  uint constant EPOCH_PERIOD = 30 minutes;
+  uint public constant EPOCH_PERIOD = 30 minutes;
   uint constant FPMM_FEE = 0.01 ether;
 
   uint public startTime;
