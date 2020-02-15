@@ -18,24 +18,28 @@ contract DCorp is ERC20 {
   string public constant symbol = "STONK";
   uint public constant decimals = 18;
 
+  WETH9 public weth;
+
   IUniswapFactory public uniswapFactory;
   IUniswapExchange public uniswapExchange;
 
   ConditionalTokens public conditionalTokens;
+
   FPMMDeterministicFactory public fpmmFactory;
-  WETH9 public weth;
 
   uint constant START_AMOUNT = 100 ether;
   uint constant EPOCH_PERIOD = 30 minutes;
   uint constant FPMM_FEE = 0.01 ether;
 
-  uint startTime;
-  uint nextMarketCapPollTime;
-  uint lastStonkPrice;
+  uint public startTime;
+  uint public nextMarketCapPollTime;
+  uint public lastStonkPrice;
 
-  constructor(IUniswapFactory _uniswapFactory, WETH9 _weth) public {
-    uniswapFactory = _uniswapFactory;
+  constructor(WETH9 _weth, IUniswapFactory _uniswapFactory, ConditionalTokens _conditionalTokens, FPMMDeterministicFactory _fpmmFactory) public {
     weth = _weth;
+    uniswapFactory = _uniswapFactory;
+    conditionalTokens = _conditionalTokens;
+    fpmmFactory = _fpmmFactory;
   }
 
   function setup() external payable {
@@ -45,7 +49,7 @@ contract DCorp is ERC20 {
     _mint(address(this), START_AMOUNT);
     _approve(address(this), exchange, START_AMOUNT);
     IUniswapExchange(exchange).addLiquidity.value(msg.value)(0, START_AMOUNT, uint(-1));
-    lastStonkPrice = uint(1 ether).mul(exchange.balance / balanceOf(exchange));
+    lastStonkPrice = uint(1 ether).mul(exchange.balance) / balanceOf(exchange);
 
     uniswapExchange = IUniswapExchange(exchange);
     startTime = block.timestamp;
@@ -179,7 +183,7 @@ contract DCorp is ERC20 {
   function poke() external payable {
     uint[] memory payouts = new uint[](2);
     address exchange = address(uniswapExchange);
-    uint currentStonkPrice = uint(1 ether).mul(exchange.balance / balanceOf(exchange));
+    uint currentStonkPrice = uint(1 ether).mul(exchange.balance) / balanceOf(exchange);
     uint loPrice = lastStonkPrice / 2;
     uint hiPrice = loPrice.add(lastStonkPrice);
     if (currentStonkPrice < loPrice) {

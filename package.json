@@ -35,10 +35,12 @@
     "@gnosis.pm/conditional-tokens-contracts": "^1.0.1",
     "@gnosis.pm/conditional-tokens-market-makers": "^1.7.0",
     "@openzeppelin/contracts": "^2.5.0",
-    "project-name": "github:PhABC/uniswap-solidity",
-    "core-js": "^3.6.4",
+    "@truffle/contract": "^4.1.9",
     "canonical-weth": "^1.4.0",
-    "vue": "^2.6.11"
+    "core-js": "^3.6.4",
+    "project-name": "github:PhABC/uniswap-solidity",
+    "vue": "^2.6.11",
+    "web3": "^1.2.6"
   },
   "devDependencies": {
     "truffle": "^5.1.12",
@@ -54,6 +56,9 @@
     "root": true,
     "env": {
       "node": true
+    },
+    "globals": {
+      "Web3": true
     },
     "extends": [
       "plugin:vue/essential",
