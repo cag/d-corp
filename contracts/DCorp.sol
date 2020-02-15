@@ -62,7 +62,7 @@ contract DCorp is ERC20 {
 
   mapping (bytes32 => FixedProductMarketMaker) proposedTransactions;
 
-  function proposeTransaction(TransactionProposal calldata proposal) external payable {
+  function propose(TransactionProposal calldata proposal) external payable {
     bytes32 proposalHash = keccak256(abi.encode(proposal));
 
     require(
