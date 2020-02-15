@@ -64,6 +64,15 @@ contract DCorp is ERC20 {
     bytes data;
   }
 
+  event TransactionProposed(
+    bytes32 indexed proposalHash,
+    uint indexed availableTime,
+    address indexed to,
+    uint value,
+    bytes data,
+    FixedProductMarketMaker fpmm
+  );
+
   mapping (bytes32 => FixedProductMarketMaker) proposedTransactions;
 
   function propose(TransactionProposal calldata proposal) external payable {
@@ -104,7 +113,7 @@ contract DCorp is ERC20 {
     conditionIds[0] = txConditionId;
     conditionIds[1] = pollConditionId;
 
-    proposedTransactions[proposalHash] = fpmmFactory.create2FixedProductMarketMaker(
+    FixedProductMarketMaker fpmm = fpmmFactory.create2FixedProductMarketMaker(
       uint(bytes32("LAND OF ECODELIA")),
       conditionalTokens,
       IERC20(address(weth)),
@@ -113,7 +122,25 @@ contract DCorp is ERC20 {
       0,
       new uint[](0)
     );
+
+    proposedTransactions[proposalHash] = fpmm;
+
+    emit TransactionProposed(
+      proposalHash,
+      proposal.availableTime,
+      proposal.to,
+      proposal.value,
+      proposal.data,
+      fpmm
+    );
   }
+
+  event TransactionProposalResolved(
+    bytes32 indexed proposalHash,
+    uint indexed availableTime,
+    address indexed to,
+    bool executed
+  );
 
   function doOrDoNot(TransactionProposal calldata proposal) external payable {
     bytes32 proposalHash = keccak256(abi.encode(proposal));
@@ -165,7 +192,8 @@ contract DCorp is ERC20 {
     }
 
     uint[] memory payouts = new uint[](2);
-    if (balances[1].mul(balances[2]) > balances[0].mul(balances[3])) {
+    bool execute = balances[1].mul(balances[2]) > balances[0].mul(balances[3]);
+    if (execute) {
       // do
       payouts[0] = 1; payouts[1] = 0;
       conditionalTokens.reportPayouts(proposalHash, payouts);
@@ -178,6 +206,13 @@ contract DCorp is ERC20 {
     }
 
     delete proposedTransactions[proposalHash];
+
+    emit TransactionProposalResolved(
+      proposalHash,
+      proposal.availableTime,
+      proposal.to,
+      execute
+    );
   }
 
   function poke() external payable {
