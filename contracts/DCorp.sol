@@ -31,6 +31,7 @@ contract DCorp is ERC20 {
 
   uint startTime;
   uint nextMarketCapPollTime;
+  uint lastStonkPrice;
 
   constructor(IUniswapFactory _uniswapFactory, WETH9 _weth) public {
     uniswapFactory = _uniswapFactory;
@@ -39,10 +40,14 @@ contract DCorp is ERC20 {
 
   function setup() external payable {
     require(address(uniswapExchange) == address(0), "already setup");
-    uniswapExchange = IUniswapExchange(uniswapFactory.createExchange(address(this)));
+    address payable exchange = uniswapFactory.createExchange(address(this));
+
     _mint(address(this), START_AMOUNT);
-    approve(address(uniswapExchange), START_AMOUNT);
-    uniswapExchange.addLiquidity.value(msg.value)(0, START_AMOUNT, 0);
+    approve(exchange, START_AMOUNT);
+    IUniswapExchange(exchange).addLiquidity.value(msg.value)(0, START_AMOUNT, 0);
+    lastStonkPrice = uint(1 ether).mul(exchange.balance / balanceOf(exchange));
+
+    uniswapExchange = IUniswapExchange(exchange);
     startTime = block.timestamp;
     nextMarketCapPollTime = startTime.add(EPOCH_PERIOD);
   }
@@ -68,6 +73,11 @@ contract DCorp is ERC20 {
     require(
       proposal.availableTime.sub(startTime) % EPOCH_PERIOD == 0,
       "proposal available time must be aligned"
+    );
+
+    require(
+      proposal.availableTime > block.timestamp + EPOCH_PERIOD,
+      "proposal must have an epoch for deciding"
     );
 
     conditionalTokens.prepareCondition(address(this), proposalHash, 2);
@@ -155,7 +165,8 @@ contract DCorp is ERC20 {
       // do
       payouts[0] = 1; payouts[1] = 0;
       conditionalTokens.reportPayouts(proposalHash, payouts);
-      proposal.to.call.value(proposal.value)(proposal.data);
+      (bool success, bytes memory retdata) = proposal.to.call.value(proposal.value)(proposal.data);
+      require(success, string(retdata));
     } else {
       // do not
       payouts[0] = 0; payouts[1] = 1;
@@ -167,8 +178,20 @@ contract DCorp is ERC20 {
 
   function poke() external payable {
     uint[] memory payouts = new uint[](2);
-
-    // TODO: figure out payouts
+    address exchange = address(uniswapExchange);
+    uint currentStonkPrice = uint(1 ether).mul(exchange.balance / balanceOf(exchange));
+    uint loPrice = lastStonkPrice / 2;
+    uint hiPrice = loPrice.add(lastStonkPrice);
+    if (currentStonkPrice < loPrice) {
+      payouts[0] = 1;
+      payouts[1] = 0;
+    } else if (currentStonkPrice > hiPrice) {
+      payouts[0] = 0;
+      payouts[1] = 1;
+    } else {
+      payouts[0] = hiPrice - currentStonkPrice;
+      payouts[1] = currentStonkPrice - loPrice;
+    }
 
     uint nextTime = nextMarketCapPollTime;
     while (nextTime <= now) {
@@ -183,6 +206,7 @@ contract DCorp is ERC20 {
       nextTime = nextTime.add(EPOCH_PERIOD);
     }
     nextMarketCapPollTime = nextTime;
+    lastStonkPrice = currentStonkPrice;
   }
 
   function() external payable {}
