@@ -138,10 +138,10 @@
           <strong>Buy Outcome Tokens</strong><br>
           ETH to bet: <input v-model="ethToBet"><br>
           <select v-model="buyOutcomeIndex">
-            <option :value="0">Does TX and STONK goes low</option>
-            <option :value="1">Does TX and STONK goes high</option>
-            <option :value="2">Skips TX and STONK goes low</option>
-            <option :value="3">Skips TX and STONK goes high</option>
+            <option :value="0">Does TX and STONK goes high</option>
+            <option :value="1">Does TX and STONK goes low</option>
+            <option :value="2">Skips TX and STONK goes high</option>
+            <option :value="3">Skips TX and STONK goes low</option>
           </select><br>
           Outcome token purchase amount: {{ outcomeTokenPurchaseAmount }}<br>
           <button v-on:click="buyOutcomeTokens">Buy</button><br>
@@ -150,10 +150,10 @@
           <strong>Sell Outcome Tokens</strong><br>
           ETH to receive: <input v-model="ethToReceive"><br>
           <select v-model="sellOutcomeIndex">
-            <option :value="0">Does TX and STONK goes low</option>
-            <option :value="1">Does TX and STONK goes high</option>
-            <option :value="2">Skips TX and STONK goes low</option>
-            <option :value="3">Skips TX and STONK goes high</option>
+            <option :value="0">Does TX and STONK goes high</option>
+            <option :value="1">Does TX and STONK goes low</option>
+            <option :value="2">Skips TX and STONK goes high</option>
+            <option :value="3">Skips TX and STONK goes low</option>
           </select><br>
           Outcome token sale amount: {{ outcomeTokenSaleAmount }}<br>
           <button v-on:click="sellOutcomeTokens">Sell</button><br>
@@ -211,10 +211,10 @@ export default {
       ethToReceive: '',
       sellOutcomeIndex: 0,
       outcomeNames: [
-        'Does + Low',
         'Does + High',
-        'Skips + Low',
+        'Does + Low',
         'Skips + High',
+        'Skips + Low',
       ],
     };
   },
