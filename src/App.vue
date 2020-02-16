@@ -624,18 +624,21 @@ export default {
   },
 
   apollo: {
-    transactionProposals: gql`{
-      transactionProposals {
-        id
-        availableTime
-        to
-        value
-        data
-        fpmm
-        isPendingResolution
-        executed
-      }
-    }`,
+    transactionProposals: {
+      query: gql`{
+        transactionProposals {
+          id
+          availableTime
+          to
+          value
+          data
+          fpmm
+          isPendingResolution
+          executed
+        }
+      }`,
+      pollInterval: 500,
+    },
   },
 }
 </script>
