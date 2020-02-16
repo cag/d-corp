@@ -203,7 +203,6 @@ export default {
   
         return fromWei(returnAmount.add(ceildiv(endingOutcomeBalance, ONE)).sub(sellTokenPoolBalance));
       } catch(e) {
-        console.error(e);
         return null;
       }
     }
