@@ -36,10 +36,22 @@
       Data: <input v-model="txProposal.data"><br>
       <button v-on:click="propose">Propose</button><br>
       <br>
-      <h3>Proposals</h3>
-      <div v-for="proposal in transactionProposals" v-bind:key="proposal.id">
-        {{ proposal }}
+      <h3>Proposal</h3>
+      <select v-model="selectedProposal">
+        <option value="">None</option>
+        <option
+          v-for="proposal in transactionProposals"
+          v-bind:key="proposal.id"
+          v-bind:value="proposal"
+        >{{proposal.id}}</option>
+      </select>
+      <div v-if="selectedProposal">
+        Available Time: {{ selectedProposal.availableTime }}<br>
+        To: {{ toChecksumAddress(selectedProposal.to) }}<br>
+        Value: {{ selectedProposal.value }}<br>
+        Data: {{ selectedProposal.data }}<br>
       </div>
+      <pre>{{ selectedProposal }}</pre>
     </div>
   </div>
 </template>
@@ -48,31 +60,12 @@
 import TruffleContract from '@truffle/contract'
 import gql from 'graphql-tag'
 
-const web3 = new Web3(Web3.givenProvider || "ws://localhost:8545");
-
 import DCorpArtifact from '../build/contracts/DCorp.json'
 import IUniswapExchangeArtifact from '../build/contracts/IUniswapExchange.json'
 import WETH9Artifact from '../build/contracts/WETH9.json'
 import FPMMDeterministicFactoryArtifact from '../build/contracts/FPMMDeterministicFactory.json'
+import FixedProductMarketMakerArtifact from '../build/contracts/FixedProductMarketMaker.json'
 import ConditionalTokensArtifact from '../build/contracts/ConditionalTokens.json'
-
-const [
-  DCorp,
-  IUniswapExchange,
-  WETH9,
-  FPMMDeterministicFactory,
-  ConditionalTokens,
-] = [
-  DCorpArtifact,
-  IUniswapExchangeArtifact,
-  WETH9Artifact,
-  FPMMDeterministicFactoryArtifact,
-  ConditionalTokensArtifact,
-].map((artifact) => {
-  const C = TruffleContract(artifact);
-  C.setProvider(web3.currentProvider);
-  return C;
-});
 
 export default {
   name: 'App',
@@ -87,6 +80,8 @@ export default {
       stonkSaleAmount: '',
       txProposal: {},
       transactionProposals: [],
+      selectedProposal: '',
+      selectedProposalData: {},
     };
   },
   computed: {
@@ -97,13 +92,24 @@ export default {
       return this.calcInputPrice(this.stonkSaleAmount, this.exchangeData.stonkBalance, this.exchangeData.ethBalance);
     },
   },
+  watch: {
+    async selectedProposal(newProposal) {
+      this.selectedProposalData = {};
+      if (!newProposal) return;
+
+      this.selectedProposalData.fpmm =
+        await this.FixedProductMarketMaker.at(newProposal.fpmm);
+
+      this.updateSelectedFpmmState();
+    }
+  },
   methods: {
     calcInputPrice(inputAmount, inputReserve, outputReserve) {
       try {
-        const inputAmountWithFee = web3.utils.toBN(web3.utils.toWei(inputAmount)).muln(997);
-        const ethReserve = web3.utils.toBN(web3.utils.toWei(inputReserve));
-        const stonkReserve = web3.utils.toBN(web3.utils.toWei(outputReserve));
-        return web3.utils.fromWei(
+        const inputAmountWithFee = Web3.utils.toBN(Web3.utils.toWei(inputAmount)).muln(997);
+        const ethReserve = Web3.utils.toBN(Web3.utils.toWei(inputReserve));
+        const stonkReserve = Web3.utils.toBN(Web3.utils.toWei(outputReserve));
+        return Web3.utils.fromWei(
           inputAmountWithFee.mul(stonkReserve).div(
             ethReserve.muln(1000).add(inputAmountWithFee)
           )
@@ -111,8 +117,9 @@ export default {
       } catch(e) {
         return null;
       }
-
     },
+
+    toChecksumAddress: Web3.utils.toChecksumAddress,
 
     async poke() {
       await this.dCorp.poke();
@@ -120,20 +127,20 @@ export default {
 
     async buyStonk() {
       await this.uniswapExchange.ethToTokenSwapInput(
-        web3.utils.toWei(this.stonkPurchaseAmount),
+        Web3.utils.toWei(this.stonkPurchaseAmount),
         Math.floor(this.now.getTime() / 1000) + 600,
-        { value: web3.utils.toWei(this.ethOfferAmount) },
+        { value: Web3.utils.toWei(this.ethOfferAmount) },
       );
     },
 
     async sellStonk() {
       await this.dCorp.approve(
         this.uniswapExchange.address,
-        web3.utils.toWei(this.stonkSaleAmount)
+        Web3.utils.toWei(this.stonkSaleAmount)
       );
       await this.uniswapExchange.tokenToEthSwapInput(
-        web3.utils.toWei(this.stonkSaleAmount),
-        web3.utils.toWei(this.ethReturnAmount),
+        Web3.utils.toWei(this.stonkSaleAmount),
+        Web3.utils.toWei(this.ethReturnAmount),
         Math.floor(this.now.getTime() / 1000) + 600,
       );
     },
@@ -144,19 +151,19 @@ export default {
 
     updateChainState() {
       for(const [name, balanceQ] of [
-        ['ethBalance', web3.eth.getBalance(this.userAccount)],
+        ['ethBalance', this.web3.eth.getBalance(this.userAccount)],
         ['wethBalance', this.weth.balanceOf(this.userAccount)],
         ['stonkBalance', this.dCorp.balanceOf(this.userAccount)],
       ])
-        balanceQ.then(balance => this.user[name] = web3.utils.fromWei(balance), console.error);
+        balanceQ.then(balance => this.user[name] = Web3.utils.fromWei(balance), console.error);
 
       Promise.all([
-        web3.eth.getBalance(this.uniswapExchange.address),
+        this.web3.eth.getBalance(this.uniswapExchange.address),
         this.dCorp.balanceOf(this.uniswapExchange.address),
       ]).then(([ethBalance, stonkBalance]) => {
-        this.exchangeData.ethBalance = web3.utils.fromWei(ethBalance);
-        this.exchangeData.stonkBalance = web3.utils.fromWei(stonkBalance);
-        this.exchangeData.currentStonkPrice = web3.utils.fromWei(web3.utils.toBN(web3.utils.toWei(ethBalance)).div(web3.utils.toBN(stonkBalance)));
+        this.exchangeData.ethBalance = Web3.utils.fromWei(ethBalance);
+        this.exchangeData.stonkBalance = Web3.utils.fromWei(stonkBalance);
+        this.exchangeData.currentStonkPrice = Web3.utils.fromWei(Web3.utils.toBN(Web3.utils.toWei(ethBalance)).div(Web3.utils.toBN(stonkBalance)));
       }, console.error);
 
       for(const prop of [
@@ -171,13 +178,47 @@ export default {
       }
 
       this.dCorp.lastStonkPrice().then(
-        p => this.dCorpData.lastStonkPrice = web3.utils.fromWei(p),
+        p => this.dCorpData.lastStonkPrice = Web3.utils.fromWei(p),
         console.error,
       );
+
+      this.updateSelectedFpmmState();
     },
+
+    updateSelectedFpmmState() {
+      const { fpmm } = this.selectedProposalData;
+      if (!fpmm) return;
+
+      console.log('do stuff here')
+    }
   },
 
   async mounted() {
+    const web3 = new Web3(Web3.givenProvider || "ws://localhost:8545");
+    this.web3 = web3;
+
+    const [
+      DCorp,
+      IUniswapExchange,
+      WETH9,
+      FPMMDeterministicFactory,
+      FixedProductMarketMaker,
+      ConditionalTokens,
+    ] = [
+      DCorpArtifact,
+      IUniswapExchangeArtifact,
+      WETH9Artifact,
+      FPMMDeterministicFactoryArtifact,
+      FixedProductMarketMakerArtifact,
+      ConditionalTokensArtifact,
+    ].map((artifact) => {
+      const C = TruffleContract(artifact);
+      C.setProvider(web3.currentProvider);
+      return C;
+    });
+
+    this.FixedProductMarketMaker = FixedProductMarketMaker;
+
     let account = web3.eth.defaultAccount;
     if (!account) {
       account = (await web3.eth.getAccounts())[0];
@@ -190,6 +231,7 @@ export default {
         IUniswapExchange,
         WETH9,
         FPMMDeterministicFactory,
+        FixedProductMarketMaker,
         ConditionalTokens,
       ]) {
         C.defaults({ from: account });
