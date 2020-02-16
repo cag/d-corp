@@ -87,8 +87,9 @@
           <option :value="3">Skips TX and STONK goes high</option>
         </select><br>
         Outcome token sale amount: {{ outcomeTokenSaleAmount }}<br>
-        <button v-on:click="sellOutcomeTokens">Sell</button>
+        <button v-on:click="sellOutcomeTokens">Sell</button><br>
         <br>
+        <button v-on:click="doOrDoNot"><strong>Do or do not</strong></button>
       </div>
     </div>
   </div>
@@ -302,6 +303,15 @@ export default {
       const maxOutcomeTokensToSell = toWei(this.outcomeTokenSaleAmount);
       await this.conditionalTokens.setApprovalForAll(fpmm.address, returnAmount);
       await fpmm.sell(returnAmount, this.sellOutcomeIndex, maxOutcomeTokensToSell);
+    },
+
+    async doOrDoNot() {
+      await this.dCorp.doOrDoNot({
+        availableTime: this.selectedProposal.availableTime,
+        to: this.selectedProposal.to,
+        value: this.selectedProposal.value,
+        data: this.selectedProposal.data,
+      }, { gas: 6000000 });
     },
 
     updateChainState() {

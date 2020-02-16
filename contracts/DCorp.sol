@@ -28,7 +28,7 @@ contract DCorp is ERC20 {
   FPMMDeterministicFactory public fpmmFactory;
 
   uint constant START_AMOUNT = 100 ether;
-  uint public constant EPOCH_PERIOD = 30 minutes;
+  uint public constant EPOCH_PERIOD = 10;
   uint constant FPMM_FEE = 0.01 ether;
 
   uint public startTime;
@@ -84,7 +84,7 @@ contract DCorp is ERC20 {
     );
 
     require(
-      proposal.availableTime.sub(startTime) % EPOCH_PERIOD == 0,
+      proposal.availableTime.sub(startTime, "proposal time must be after") % EPOCH_PERIOD == 0,
       "proposal available time must be aligned"
     );
 
@@ -147,7 +147,7 @@ contract DCorp is ERC20 {
 
     FixedProductMarketMaker fpmm = proposedTransactions[proposalHash];
 
-    require(fpmm != FixedProductMarketMaker(0), "transaction not prepared yet");
+    require(fpmm != FixedProductMarketMaker(0), "transaction missing");
 
     uint[] memory balances;
     {

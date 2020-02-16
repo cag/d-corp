@@ -10,6 +10,7 @@
     "codegen-graph": "truffle exec render-templates.js && graph codegen",
     "build-graph": "npm run codegen-graph && graph build",
     "deploy-local": "npm run codegen-graph && graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 cag/d-corp",
+    "fresh-graph": "npm run migrate && npm run deploy-local",
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
