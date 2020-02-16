@@ -1,96 +1,151 @@
+<style scoped>
+#app {
+  margin: 1em;
+}
+
+.logo {
+  display: block;
+  margin: 1em auto;
+  width: 25%;
+  max-width: 100px;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.block {
+  margin: 1em;
+}
+
+.proposal {
+  background-color: seashell;
+}
+
+</style>
+
 <template>
   <div id="app">
-    <img alt="D Corp logo" src="./assets/logo.png">
-    <div>
-      Current time: {{ Math.floor(now.getTime() / 1000) }}<br>
-      Block time: {{ latestBlock.timestamp }}<br>
-      <br>
-      My ETH: {{ user.ethBalance }}<br>
-      My WETH: {{ user.wethBalance }}<br>
-      My STONK: {{ user.stonkBalance }}<br>
-      <br>
-      Epoch period: {{ dCorpData.EPOCH_PERIOD }}<br>
-      Next poke time: {{ dCorpData.nextMarketCapPollTime }}<br>
-      Last STONK price: {{ dCorpData.lastStonkPrice }}<br>
-      <br>
-      <button v-on:click="poke">Poke</button><br>
-      <br>
-      Current STONK price: {{ exchangeData.currentStonkPrice }}<br>
-      Exchange ETH reserve: {{ exchangeData.ethBalance }}<br>
-      Exchange STONK reserve: {{ exchangeData.stonkBalance }}<br>
-      <br>
-      <strong>Buy STONK</strong><br>
-      ETH investment amount: <input v-model="ethOfferAmount"><br>
-      STONK: {{ stonkPurchaseAmount }}<br>
-      <button v-on:click="buyStonk">Buy</button><br>
-      <br>
-      <strong>Sell STONK</strong><br>
-      STONK sale amount: <input v-model="stonkSaleAmount"><br>
-      ETH: {{ ethReturnAmount }}<br>
-      <button v-on:click="sellStonk">Sell</button><br>
-      <br>
-      <strong>Propose Transaction</strong><br>
-      Time when executable: <input v-model="txProposal.availableTime"><br>
-      To: <input v-model="txProposal.to"><br>
-      Value: <input v-model="txProposal.value"><br>
-      Data: <input v-model="txProposal.data"><br>
-      <button v-on:click="propose">Propose</button><br>
-      <br>
-      <h3>Proposal</h3>
-      <select v-model="selectedProposal">
-        <option value="">None</option>
-        <option
-          v-for="proposal in transactionProposals"
-          v-bind:key="proposal.id"
-          v-bind:value="proposal"
-        >{{proposal.id}}</option>
-      </select>
-      <div v-if="selectedProposal">
-        Time when executable: {{ selectedProposal.availableTime }}<br>
-        To: {{ toChecksumAddress(selectedProposal.to) }}<br>
-        Value: {{ selectedProposal.value }}<br>
-        Data: {{ selectedProposal.data }}<br>
+    <div><img class="logo" alt="D Corp logo" src="./assets/logo.png"></div>
+    <div class="line">
+      <div class='block'>
+        Current time: {{ now.toLocaleString() }}<br>
+        Block time: {{ formatTimestamp(latestBlock.timestamp) }}
+      </div>
+      <div class='block'>
+        My ETH: {{ user.ethBalance }}<br>
+        My WETH: {{ user.wethBalance }}<br>
+        My STONK: {{ user.stonkBalance }}<br>
+      </div>
+      <div class='block'>
+        Epoch period: {{ dCorpData.EPOCH_PERIOD }}<br>
+        Next poke time: {{ formatTimestamp(dCorpData.nextMarketCapPollTime) }}<br>
+        Last STONK price: {{ dCorpData.lastStonkPrice }}<br>
         <br>
-        My pool tokens: {{ selectedProposalData.userPoolBalance }}<br>
-        My outcome tokens: {{ selectedProposalData.userOutcomeTokens }}<br>
-        <button v-on:click="redeemOutcomeTokens">Redeem</button><br>
-        <br>
-        Pool token supply: {{ selectedProposalData.poolTokenSupply }}<br>
-        Pool outcome tokens: {{ selectedProposalData.outcomeTokenBalances }}<br>
-        Pool fee factor: {{ selectedProposalData.feeFactor }}<br>
-        <br>
-        <strong>Enter Pool</strong><br>
-        Added funding (ETH): <input v-model="additionalFunding"><br>
-        Distribution hint: <input v-model="distributionHint"><br>
-        <button v-on:click="addFunding">Enter</button><br>
-        <br>
-        <strong>Exit Pool</strong><br>
-        Pool tokens to burn: <input v-model="poolTokensToBurn"><br>
-        <button v-on:click="removeFunding">Exit</button><br>
-        <br>
-        <strong>Buy Outcome Tokens</strong><br>
-        ETH to bet: <input v-model="ethToBet"><br>
-        <select v-model="buyOutcomeIndex">
-          <option :value="0">Does TX and STONK goes low</option>
-          <option :value="1">Does TX and STONK goes high</option>
-          <option :value="2">Skips TX and STONK goes low</option>
-          <option :value="3">Skips TX and STONK goes high</option>
-        </select><br>
-        Outcome token purchase amount: {{ outcomeTokenPurchaseAmount }}<br>
-        <button v-on:click="buyOutcomeTokens">Buy</button><br>
-        <br>
-        <strong>Sell Outcome Tokens</strong><br>
-        ETH to receive: <input v-model="ethToReceive"><br>
-        <select v-model="sellOutcomeIndex">
-          <option :value="0">Does TX and STONK goes low</option>
-          <option :value="1">Does TX and STONK goes high</option>
-          <option :value="2">Skips TX and STONK goes low</option>
-          <option :value="3">Skips TX and STONK goes high</option>
-        </select><br>
-        Outcome token sale amount: {{ outcomeTokenSaleAmount }}<br>
-        <button v-on:click="sellOutcomeTokens">Sell</button><br>
-        <br>
-        <button v-on:click="doOrDoNot"><strong>Do or do not</strong></button>
+        <button v-on:click="poke">Poke</button><br>
+      </div>
+    </div>
+    <div class="line">
+      <div class='block'>
+        Current STONK price: {{ exchangeData.currentStonkPrice }}<br>
+        Exchange ETH reserve: {{ exchangeData.ethBalance }}<br>
+        Exchange STONK reserve: {{ exchangeData.stonkBalance }}<br>
+      </div>
+      <div class='block'>
+        <strong>Buy STONK</strong><br>
+        ETH investment amount: <input v-model="ethOfferAmount"><br>
+        STONK: {{ stonkPurchaseAmount }}<br>
+        <button v-on:click="buyStonk">Buy</button><br>
+      </div>
+      <div class='block'>
+        <strong>Sell STONK</strong><br>
+        STONK sale amount: <input v-model="stonkSaleAmount"><br>
+        ETH: {{ ethReturnAmount }}<br>
+        <button v-on:click="sellStonk">Sell</button><br>
+      </div>
+    </div>
+    <div class="line">
+      <div class='block'>
+        <strong>Propose Transaction</strong><br>
+        Available {{ formatTimestamp(txProposal.availableTime) }}<br>
+        <button v-on:click="resetTime">Reset</button>
+        <button v-on:click="advanceTime">></button><br>
+        To: <input v-model="txProposal.to"><br>
+        Value: <input v-model="txProposal.value"><br>
+        Data: <input v-model="txProposal.data"><br>
+        <button v-on:click="propose">Propose</button><br>
+      </div>
+      <div>
+        <h3>Proposal</h3>
+        <select v-model="selectedProposal">
+          <option value="">None</option>
+          <option
+            v-for="proposal in transactionProposals"
+            v-bind:key="proposal.id"
+            v-bind:value="proposal"
+          >{{proposal.id}}</option>
+        </select>
+      </div>
+    </div>
+    <div class="proposal" v-if="selectedProposal">
+      <div class="line">
+        <div class="block">
+          Time when executable: {{ formatTimestamp(selectedProposal.availableTime) }}<br>
+          To: {{ toChecksumAddress(selectedProposal.to) }}<br>
+          Value: {{ selectedProposal.value }}<br>
+          Data: {{ selectedProposal.data }}<br>
+        </div>
+        <div class="block">
+          My pool tokens: {{ selectedProposalData.userPoolBalance }}<br>
+          My outcome tokens: {{ selectedProposalData.userOutcomeTokens }}<br>
+          <button v-on:click="redeemOutcomeTokens">Redeem</button><br>
+        </div>
+        <div class="block">
+          Pool token supply: {{ selectedProposalData.poolTokenSupply }}<br>
+          Pool outcome tokens: {{ selectedProposalData.outcomeTokenBalances }}<br>
+          Pool fee factor: {{ selectedProposalData.feeFactor }}<br>
+        </div>
+      </div>
+      <div class="line">
+        <div class="block">
+          <strong>Enter Pool</strong><br>
+          Added funding (ETH): <input v-model="additionalFunding"><br>
+          Distribution hint: <input v-model="distributionHint"><br>
+          <button v-on:click="addFunding">Enter</button><br>
+        </div>
+        <div class="block">
+          <strong>Exit Pool</strong><br>
+          Pool tokens to burn: <input v-model="poolTokensToBurn"><br>
+          <button v-on:click="removeFunding">Exit</button><br>
+        </div>
+        <div class="block">
+          <strong>Buy Outcome Tokens</strong><br>
+          ETH to bet: <input v-model="ethToBet"><br>
+          <select v-model="buyOutcomeIndex">
+            <option :value="0">Does TX and STONK goes low</option>
+            <option :value="1">Does TX and STONK goes high</option>
+            <option :value="2">Skips TX and STONK goes low</option>
+            <option :value="3">Skips TX and STONK goes high</option>
+          </select><br>
+          Outcome token purchase amount: {{ outcomeTokenPurchaseAmount }}<br>
+          <button v-on:click="buyOutcomeTokens">Buy</button><br>
+        </div>
+        <div class="block">
+          <strong>Sell Outcome Tokens</strong><br>
+          ETH to receive: <input v-model="ethToReceive"><br>
+          <select v-model="sellOutcomeIndex">
+            <option :value="0">Does TX and STONK goes low</option>
+            <option :value="1">Does TX and STONK goes high</option>
+            <option :value="2">Skips TX and STONK goes low</option>
+            <option :value="3">Skips TX and STONK goes high</option>
+          </select><br>
+          Outcome token sale amount: {{ outcomeTokenSaleAmount }}<br>
+          <button v-on:click="sellOutcomeTokens">Sell</button><br>
+        </div>
+        <div class="block">
+          <button v-on:click="doOrDoNot"><strong>Do or do not</strong></button>
+        </div>
       </div>
     </div>
   </div>
@@ -229,6 +284,10 @@ export default {
     }
   },
   methods: {
+    formatTimestamp(ts) {
+      return new Date(ts * 1000).toLocaleString();
+    },
+
     calcInputPrice(inputAmount, inputReserve, outputReserve) {
       try {
         const inputAmountWithFee = toBN(toWei(inputAmount)).muln(997);
@@ -245,6 +304,25 @@ export default {
     },
 
     toChecksumAddress,
+
+    resetTime() {
+      const startTime = this.dCorpData.startTime.toNumber()
+      const EPOCH_PERIOD = this.dCorpData.EPOCH_PERIOD.toNumber()
+
+      this.$set(this.txProposal, 'availableTime',
+        startTime + EPOCH_PERIOD * (1 + Math.ceil(
+          (this.now.getTime() / 1000 - startTime) /
+          EPOCH_PERIOD
+        ))
+      );
+    },
+
+    advanceTime() {
+      const EPOCH_PERIOD = this.dCorpData.EPOCH_PERIOD.toNumber()
+
+      this.$set(this.txProposal, 'availableTime', this.txProposal.availableTime + EPOCH_PERIOD);
+
+    },
 
     async poke() {
       await this.dCorp.poke();
@@ -357,7 +435,7 @@ export default {
       );
     },
 
-    updateChainState() {
+    updateChainState(shouldResetTime) {
       for(const [name, balanceQ] of [
         ['ethBalance', this.web3.eth.getBalance(this.userAccount)],
         ['wethBalance', this.weth.balanceOf(this.userAccount)],
@@ -380,10 +458,16 @@ export default {
         'nextMarketCapPollTime',
       ]) {
         this.dCorp[prop]().then(
-          t => this.$set(this.dCorpData, prop, t),
+          t => {
+            this.$set(this.dCorpData, prop, t);
+            if (shouldResetTime) {
+              this.resetTime();
+            }
+          },
           console.error,
         );
       }
+
 
       this.dCorp.lastStonkPrice().then(
         p => this.$set(this.dCorpData, 'lastStonkPrice', fromWei(p)),
@@ -522,7 +606,7 @@ export default {
     }
 
     this.latestBlock = await web3.eth.getBlock();
-    this.updateChainState();
+    this.updateChainState(true);
 
     this.nowInterval = setInterval(() => { this.now = new Date() }, 10)
     this.newBlockHeadersSubscription = web3.eth.subscribe('newBlockHeaders')
