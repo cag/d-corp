@@ -39,7 +39,7 @@
   "homepage": "https://github.com/cag/d-corp#readme",
   "dependencies": {
     "@gnosis.pm/conditional-tokens-contracts": "^1.0.1",
-    "@gnosis.pm/conditional-tokens-market-makers": "^1.7.0",
+    "@gnosis.pm/conditional-tokens-market-makers": "github:gnosis/conditional-tokens-market-makers#modify-fees",
     "@openzeppelin/contracts": "^2.5.0",
     "@truffle/contract": "^4.1.9",
     "apollo-boost": "^0.4.7",

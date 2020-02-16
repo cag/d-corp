@@ -110,8 +110,8 @@ contract DCorp is ERC20 {
     }
 
     bytes32[] memory conditionIds = new bytes32[](2);
-    conditionIds[0] = txConditionId;
-    conditionIds[1] = pollConditionId;
+    conditionIds[0] = pollConditionId;
+    conditionIds[1] = txConditionId;
 
     FixedProductMarketMaker fpmm = fpmmFactory.create2FixedProductMarketMaker(
       uint(bytes32("LAND OF ECODELIA")),
@@ -215,10 +215,10 @@ contract DCorp is ERC20 {
     );
   }
 
-  emit EpochPassed(
-    uint indexed epochEndTime;
-    uint timeResolved;
-    uint resultStonkPrice;
+  event EpochPassed(
+    uint indexed epochEndTime,
+    uint timeResolved,
+    uint resultStonkPrice
   );
 
   function poke() external payable {

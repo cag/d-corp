@@ -30,7 +30,7 @@
       <button v-on:click="sellStonk">Sell</button><br>
       <br>
       <strong>Propose Transaction</strong><br>
-      Available Time: <input v-model="txProposal.availableTime"><br>
+      Time when executable: <input v-model="txProposal.availableTime"><br>
       To: <input v-model="txProposal.to"><br>
       Value: <input v-model="txProposal.value"><br>
       Data: <input v-model="txProposal.data"><br>
@@ -46,12 +46,50 @@
         >{{proposal.id}}</option>
       </select>
       <div v-if="selectedProposal">
-        Available Time: {{ selectedProposal.availableTime }}<br>
+        Time when executable: {{ selectedProposal.availableTime }}<br>
         To: {{ toChecksumAddress(selectedProposal.to) }}<br>
         Value: {{ selectedProposal.value }}<br>
         Data: {{ selectedProposal.data }}<br>
+        <br>
+        My pool tokens: {{ selectedProposalData.userPoolBalance }}<br>
+        My outcome tokens: {{ selectedProposalData.userOutcomeTokens }}<br>
+        <br>
+        Pool token supply: {{ selectedProposalData.poolTokenSupply }}<br>
+        Pool outcome tokens: {{ selectedProposalData.outcomeTokenBalances }}<br>
+        Pool fee factor: {{ selectedProposalData.feeFactor }}<br>
+        <br>
+        <strong>Enter Pool</strong><br>
+        Added funding (ETH): <input v-model="additionalFunding"><br>
+        Distribution hint: <input v-model="distributionHint"><br>
+        <button v-on:click="addFunding">Enter</button><br>
+        <br>
+        <strong>Exit Pool</strong><br>
+        Pool tokens to burn: <input v-model="poolTokensToBurn"><br>
+        <button v-on:click="removeFunding">Exit</button><br>
+        <br>
+        <strong>Buy Outcome Tokens</strong><br>
+        ETH to bet: <input v-model="ethToBet"><br>
+        <select v-model="buyOutcomeIndex">
+          <option :value="0">Does TX and STONK goes low</option>
+          <option :value="1">Does TX and STONK goes high</option>
+          <option :value="2">Skips TX and STONK goes low</option>
+          <option :value="3">Skips TX and STONK goes high</option>
+        </select><br>
+        Outcome token purchase amount: {{ outcomeTokenPurchaseAmount }}<br>
+        <button v-on:click="buyOutcomeTokens">Buy</button><br>
+        <br>
+        <strong>Sell Outcome Tokens</strong><br>
+        ETH to receive: <input v-model="ethToReceive"><br>
+        <select v-model="sellOutcomeIndex">
+          <option :value="0">Does TX and STONK goes low</option>
+          <option :value="1">Does TX and STONK goes high</option>
+          <option :value="2">Skips TX and STONK goes low</option>
+          <option :value="3">Skips TX and STONK goes high</option>
+        </select><br>
+        Outcome token sale amount: {{ outcomeTokenSaleAmount }}<br>
+        <button v-on:click="sellOutcomeTokens">Sell</button>
+        <br>
       </div>
-      <pre>{{ selectedProposal }}</pre>
     </div>
   </div>
 </template>
@@ -59,6 +97,20 @@
 <script>
 import TruffleContract from '@truffle/contract'
 import gql from 'graphql-tag'
+import makeIdHelpers from '@gnosis.pm/conditional-tokens-contracts/utils/id-helpers'
+
+const { getConditionId, getCollectionId, combineCollectionIds, getPositionId } = makeIdHelpers(Web3.utils);
+
+const {
+  toBN,
+  fromWei,
+  toWei,
+  toChecksumAddress,
+  padLeft,
+  toHex,
+} = Web3.utils;
+
+const ceildiv = (x, y) => x.gtn(0) ? x.subn(1).div(y).addn(1) : x.div(y);
 
 import DCorpArtifact from '../build/contracts/DCorp.json'
 import IUniswapExchangeArtifact from '../build/contracts/IUniswapExchange.json'
@@ -82,6 +134,13 @@ export default {
       transactionProposals: [],
       selectedProposal: '',
       selectedProposalData: {},
+      additionalFunding: '',
+      distributionHint: '',
+      poolTokensToBurn: '',
+      ethToBet: '',
+      buyOutcomeIndex: 0,
+      ethToReceive: '',
+      sellOutcomeIndex: 0,
     };
   },
   computed: {
@@ -91,14 +150,79 @@ export default {
     ethReturnAmount() {
       return this.calcInputPrice(this.stonkSaleAmount, this.exchangeData.stonkBalance, this.exchangeData.ethBalance);
     },
+    outcomeTokenPurchaseAmount() {
+      try {
+        const ONE = toBN(toWei('1'));
+        const poolBalances = this.selectedProposalData.outcomeTokenBalances.map(
+          balance => toBN(toWei(balance))
+        );
+        const investmentAmount = toBN(toWei(this.ethToBet));
+        const investmentAmountMinusFees = investmentAmount.sub(
+          investmentAmount.mul(
+            toBN(toWei(this.selectedProposalData.feeFactor))
+          ).div(ONE)
+        );
+        const buyTokenPoolBalance = poolBalances[this.buyOutcomeIndex];
+        let endingOutcomeBalance = buyTokenPoolBalance.mul(ONE);
+        poolBalances.forEach((poolBalance, i) => {
+          if (i !== this.buyOutcomeIndex) {
+            endingOutcomeBalance = ceildiv(
+              endingOutcomeBalance.mul(poolBalance),
+              poolBalance.add(investmentAmountMinusFees)
+            );
+          }
+        })
+  
+        return fromWei(buyTokenPoolBalance.add(investmentAmount).sub(ceildiv(endingOutcomeBalance, ONE)));
+      } catch(e) {
+        return null;
+      }
+    },
+    outcomeTokenSaleAmount() {
+      try {
+        const ONE = toBN(toWei('1'));
+        const poolBalances = this.selectedProposalData.outcomeTokenBalances.map(
+          balance => toBN(toWei(balance))
+        );
+        const returnAmount = toBN(toWei(this.ethToReceive));
+        const returnAmountPlusFees = returnAmount.add(
+          returnAmount.mul(
+            toBN(toWei(this.selectedProposalData.feeFactor))
+          ).div(ONE)
+        );
+        const sellTokenPoolBalance = poolBalances[this.sellOutcomeIndex];
+        let endingOutcomeBalance = sellTokenPoolBalance.mul(ONE);
+        poolBalances.forEach((poolBalance, i) => {
+          if (i !== this.sellOutcomeIndex) {
+            endingOutcomeBalance = ceildiv(
+              endingOutcomeBalance.mul(poolBalance),
+              poolBalance.sub(returnAmountPlusFees)
+            );
+          }
+        })
+  
+        return fromWei(returnAmount.add(ceildiv(endingOutcomeBalance, ONE)).sub(sellTokenPoolBalance));
+      } catch(e) {
+        console.error(e);
+        return null;
+      }
+    }
   },
   watch: {
     async selectedProposal(newProposal) {
       this.selectedProposalData = {};
       if (!newProposal) return;
 
-      this.selectedProposalData.fpmm =
-        await this.FixedProductMarketMaker.at(newProposal.fpmm);
+      this.$set(
+        this.selectedProposalData,
+        'fpmm',
+        await this.FixedProductMarketMaker.at(newProposal.fpmm),
+      );
+
+      this.selectedProposalData.fpmm.fee().then(
+        feeFactor => this.$set(this.selectedProposalData, 'feeFactor', fromWei(feeFactor)),
+        console.error,
+      );
 
       this.updateSelectedFpmmState();
     }
@@ -106,10 +230,10 @@ export default {
   methods: {
     calcInputPrice(inputAmount, inputReserve, outputReserve) {
       try {
-        const inputAmountWithFee = Web3.utils.toBN(Web3.utils.toWei(inputAmount)).muln(997);
-        const ethReserve = Web3.utils.toBN(Web3.utils.toWei(inputReserve));
-        const stonkReserve = Web3.utils.toBN(Web3.utils.toWei(outputReserve));
-        return Web3.utils.fromWei(
+        const inputAmountWithFee = toBN(toWei(inputAmount)).muln(997);
+        const ethReserve = toBN(toWei(inputReserve));
+        const stonkReserve = toBN(toWei(outputReserve));
+        return fromWei(
           inputAmountWithFee.mul(stonkReserve).div(
             ethReserve.muln(1000).add(inputAmountWithFee)
           )
@@ -119,7 +243,7 @@ export default {
       }
     },
 
-    toChecksumAddress: Web3.utils.toChecksumAddress,
+    toChecksumAddress,
 
     async poke() {
       await this.dCorp.poke();
@@ -127,20 +251,20 @@ export default {
 
     async buyStonk() {
       await this.uniswapExchange.ethToTokenSwapInput(
-        Web3.utils.toWei(this.stonkPurchaseAmount),
+        toWei(this.stonkPurchaseAmount),
         Math.floor(this.now.getTime() / 1000) + 600,
-        { value: Web3.utils.toWei(this.ethOfferAmount) },
+        { value: toWei(this.ethOfferAmount) },
       );
     },
 
     async sellStonk() {
       await this.dCorp.approve(
         this.uniswapExchange.address,
-        Web3.utils.toWei(this.stonkSaleAmount)
+        toWei(this.stonkSaleAmount)
       );
       await this.uniswapExchange.tokenToEthSwapInput(
-        Web3.utils.toWei(this.stonkSaleAmount),
-        Web3.utils.toWei(this.ethReturnAmount),
+        toWei(this.stonkSaleAmount),
+        toWei(this.ethReturnAmount),
         Math.floor(this.now.getTime() / 1000) + 600,
       );
     },
@@ -149,21 +273,53 @@ export default {
       await this.dCorp.propose(this.txProposal);
     },
 
+    async addFunding() {
+      const { fpmm } = this.selectedProposalData;
+      const addedFunds = toWei(this.additionalFunding);
+      const hint = this.distributionHint ? JSON.parse(this.distributionHint) : [];
+      await this.weth.deposit({ value: addedFunds });
+      await this.weth.approve(fpmm.address, addedFunds);
+      await fpmm.addFunding(addedFunds, hint);
+    },
+
+    async removeFunding() {
+      const { fpmm } = this.selectedProposalData;
+      const sharesToBurn = toWei(this.poolTokensToBurn);
+      await fpmm.removeFunding(sharesToBurn);
+    },
+
+    async buyOutcomeTokens() {
+      const { fpmm } = this.selectedProposalData;
+      const investmentAmount = toWei(this.ethToBet);
+      const minOutcomeTokensToBuy = toWei(this.outcomeTokenPurchaseAmount);
+      await this.weth.deposit({ value: investmentAmount });
+      await this.weth.approve(fpmm.address, investmentAmount);
+      await fpmm.buy(investmentAmount, this.buyOutcomeIndex, minOutcomeTokensToBuy);
+    },
+
+    async sellOutcomeTokens() {
+      const { fpmm } = this.selectedProposalData;
+      const returnAmount = toWei(this.ethToReceive);
+      const maxOutcomeTokensToSell = toWei(this.outcomeTokenSaleAmount);
+      await this.conditionalTokens.setApprovalForAll(fpmm.address, returnAmount);
+      await fpmm.sell(returnAmount, this.sellOutcomeIndex, maxOutcomeTokensToSell);
+    },
+
     updateChainState() {
       for(const [name, balanceQ] of [
         ['ethBalance', this.web3.eth.getBalance(this.userAccount)],
         ['wethBalance', this.weth.balanceOf(this.userAccount)],
         ['stonkBalance', this.dCorp.balanceOf(this.userAccount)],
       ])
-        balanceQ.then(balance => this.user[name] = Web3.utils.fromWei(balance), console.error);
+        balanceQ.then(balance => this.$set(this.user, name, fromWei(balance)), console.error);
 
       Promise.all([
         this.web3.eth.getBalance(this.uniswapExchange.address),
         this.dCorp.balanceOf(this.uniswapExchange.address),
       ]).then(([ethBalance, stonkBalance]) => {
-        this.exchangeData.ethBalance = Web3.utils.fromWei(ethBalance);
-        this.exchangeData.stonkBalance = Web3.utils.fromWei(stonkBalance);
-        this.exchangeData.currentStonkPrice = Web3.utils.fromWei(Web3.utils.toBN(Web3.utils.toWei(ethBalance)).div(Web3.utils.toBN(stonkBalance)));
+        this.$set(this.exchangeData, 'ethBalance', fromWei(ethBalance));
+        this.$set(this.exchangeData, 'stonkBalance', fromWei(stonkBalance));
+        this.$set(this.exchangeData, 'currentStonkPrice', fromWei(toBN(toWei(ethBalance)).div(toBN(stonkBalance))));
       }, console.error);
 
       for(const prop of [
@@ -172,13 +328,13 @@ export default {
         'nextMarketCapPollTime',
       ]) {
         this.dCorp[prop]().then(
-          t => this.dCorpData[prop] = t,
+          t => this.$set(this.dCorpData, prop, t),
           console.error,
         );
       }
 
       this.dCorp.lastStonkPrice().then(
-        p => this.dCorpData.lastStonkPrice = Web3.utils.fromWei(p),
+        p => this.$set(this.dCorpData, 'lastStonkPrice', fromWei(p)),
         console.error,
       );
 
@@ -186,10 +342,73 @@ export default {
     },
 
     updateSelectedFpmmState() {
+      if (!this.selectedProposal)
+        return;
+
+      const txConditionId = getConditionId(
+        this.dCorp.address,
+        this.selectedProposal.id,
+        2,
+      );
+      const pollConditionId = getConditionId(
+        this.dCorp.address,
+        padLeft(
+          toHex(
+            this.dCorpData.EPOCH_PERIOD.add(
+              toBN(this.selectedProposal.availableTime)
+            )
+          ),
+          64
+        ),
+        2,
+      );
+
+      const positionIds = Array.from({ length: 4 }, (v, i) =>
+        getPositionId(
+          this.weth.address,
+          combineCollectionIds([
+            getCollectionId(txConditionId, 1 << (i >> 1)),
+            getCollectionId(pollConditionId, 1 << (i & 1)),
+          ]),
+        )
+      )
+
+      this.conditionalTokens.balanceOfBatch(
+        new Array(4).fill(this.userAccount),
+        positionIds
+      ).then(
+        balances => this.$set(
+          this.selectedProposalData,
+          'userOutcomeTokens',
+          balances.map(v => fromWei(v))
+        ),
+        console.error
+      );
+
       const { fpmm } = this.selectedProposalData;
       if (!fpmm) return;
 
-      console.log('do stuff here')
+      fpmm.balanceOf(this.userAccount).then(
+        balance => this.$set(this.selectedProposalData, 'userPoolBalance', fromWei(balance)),
+        console.error
+      );
+
+      fpmm.totalSupply().then(
+        balance => this.$set(this.selectedProposalData, 'poolTokenSupply', fromWei(balance)),
+        console.error
+      )
+
+      this.conditionalTokens.balanceOfBatch(
+        new Array(4).fill(fpmm.address),
+        positionIds
+      ).then(
+        balances => this.$set(
+          this.selectedProposalData,
+          'outcomeTokenBalances',
+          balances.map(v => fromWei(v)),
+        ),
+        console.error
+      );
     }
   },
 
