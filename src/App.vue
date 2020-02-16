@@ -95,15 +95,28 @@
           To: {{ toChecksumAddress(selectedProposal.to) }}<br>
           Value: {{ selectedProposal.value }}<br>
           Data: {{ selectedProposal.data }}<br>
+          Still pending? {{ selectedProposal.isPendingResolution ? 'Yes.' : 'No.' }}<br>
+          <span v-if="!selectedProposal.isPendingResolution">
+            Executed? {{ selectedProposal.executed ? 'Yes.' : 'No.' }}<br>
+          </span>
+          <button v-on:click="doOrDoNot">Do or do not</button><br>
         </div>
         <div class="block">
           My pool tokens: {{ selectedProposalData.userPoolBalance }}<br>
-          My outcome tokens: {{ selectedProposalData.userOutcomeTokens }}<br>
+          My outcome tokens:<br>
+          <span
+            v-for="(balance, index) in selectedProposalData.userOutcomeTokens"
+            v-bind:key="index"
+          >{{ outcomeNames[index] }}: {{ balance }}<br></span>
           <button v-on:click="redeemOutcomeTokens">Redeem</button><br>
         </div>
         <div class="block">
           Pool token supply: {{ selectedProposalData.poolTokenSupply }}<br>
-          Pool outcome tokens: {{ selectedProposalData.outcomeTokenBalances }}<br>
+          Pool outcome tokens:<br>
+          <span
+            v-for="(balance, index) in selectedProposalData.outcomeTokenBalances"
+            v-bind:key="index"
+          >{{ outcomeNames[index] }}: {{ balance }}<br></span>
           Pool fee factor: {{ selectedProposalData.feeFactor }}<br>
         </div>
       </div>
@@ -119,6 +132,8 @@
           Pool tokens to burn: <input v-model="poolTokensToBurn"><br>
           <button v-on:click="removeFunding">Exit</button><br>
         </div>
+      </div>
+      <div class="line">
         <div class="block">
           <strong>Buy Outcome Tokens</strong><br>
           ETH to bet: <input v-model="ethToBet"><br>
@@ -142,9 +157,6 @@
           </select><br>
           Outcome token sale amount: {{ outcomeTokenSaleAmount }}<br>
           <button v-on:click="sellOutcomeTokens">Sell</button><br>
-        </div>
-        <div class="block">
-          <button v-on:click="doOrDoNot"><strong>Do or do not</strong></button>
         </div>
       </div>
     </div>
@@ -198,6 +210,12 @@ export default {
       buyOutcomeIndex: 0,
       ethToReceive: '',
       sellOutcomeIndex: 0,
+      outcomeNames: [
+        'Does + Low',
+        'Does + High',
+        'Skips + Low',
+        'Skips + High',
+      ],
     };
   },
   computed: {
@@ -281,6 +299,13 @@ export default {
       );
 
       this.updateSelectedFpmmState();
+    },
+
+    transactionProposals(newProposals) {
+      if (!this.selectedProposal) return;
+      const matchingSelected = newProposals.find(({ id }) => id === this.selectedProposal.id);
+      if (matchingSelected != null)
+        this.selectedProposal = matchingSelected;
     }
   },
   methods: {
