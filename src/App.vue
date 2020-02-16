@@ -53,6 +53,7 @@
         <br>
         My pool tokens: {{ selectedProposalData.userPoolBalance }}<br>
         My outcome tokens: {{ selectedProposalData.userOutcomeTokens }}<br>
+        <button v-on:click="redeemOutcomeTokens">Redeem</button><br>
         <br>
         Pool token supply: {{ selectedProposalData.poolTokenSupply }}<br>
         Pool outcome tokens: {{ selectedProposalData.outcomeTokenBalances }}<br>
@@ -312,6 +313,48 @@ export default {
         value: this.selectedProposal.value,
         data: this.selectedProposal.data,
       }, { gas: 6000000 });
+    },
+
+    async redeemOutcomeTokens() {
+      const txConditionId = getConditionId(
+        this.dCorp.address,
+        this.selectedProposal.id,
+        2,
+      );
+
+      const pollConditionId = getConditionId(
+        this.dCorp.address,
+        padLeft(
+          toHex(
+            this.dCorpData.EPOCH_PERIOD.add(
+              toBN(this.selectedProposal.availableTime)
+            )
+          ),
+          64
+        ),
+        2,
+      );
+
+      await this.conditionalTokens.redeemPositions(
+        this.weth.address,
+        getCollectionId(pollConditionId, 0b01),
+        txConditionId,
+        [0b01, 0b10]
+      );
+
+      await this.conditionalTokens.redeemPositions(
+        this.weth.address,
+        getCollectionId(pollConditionId, 0b10),
+        txConditionId,
+        [0b01, 0b10]
+      );
+
+      await this.conditionalTokens.redeemPositions(
+        this.weth.address,
+        '0x',
+        pollConditionId,
+        [0b01, 0b10]
+      );
     },
 
     updateChainState() {
