@@ -34,15 +34,21 @@
       To: <input v-model="txProposal.to"><br>
       Value: <input v-model="txProposal.value"><br>
       Data: <input v-model="txProposal.data"><br>
-      <button v-on:click="proposeTransaction">Propose</button>
+      <button v-on:click="propose">Propose</button><br>
+      <br>
+      <h3>Proposals</h3>
+      <div v-for="proposal in transactionProposals" v-bind:key="proposal.id">
+        {{ proposal }}
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import TruffleContract from '@truffle/contract'
+import gql from 'graphql-tag'
 
-const web3 = new Web3(Web3.givenProvider || "ws://localhost:7545");
+const web3 = new Web3(Web3.givenProvider || "ws://localhost:8545");
 
 import DCorpArtifact from '../build/contracts/DCorp.json'
 import IUniswapExchangeArtifact from '../build/contracts/IUniswapExchange.json'
@@ -80,6 +86,7 @@ export default {
       ethOfferAmount: '',
       stonkSaleAmount: '',
       txProposal: {},
+      transactionProposals: [],
     };
   },
   computed: {
@@ -131,8 +138,8 @@ export default {
       );
     },
 
-    async proposeTransaction() {
-      await this.dCorp.proposeTransaction(this.txProposal);
+    async propose() {
+      await this.dCorp.propose(this.txProposal);
     },
 
     updateChainState() {
@@ -217,6 +224,21 @@ export default {
     clearInterval(this.nowInterval);
     this.nowInterval = null;
     this.newBlockHeadersSubscription.unsubscribe();
+  },
+
+  apollo: {
+    transactionProposals: gql`{
+      transactionProposals {
+        id
+        availableTime
+        to
+        value
+        data
+        fpmm
+        isPendingResolution
+        executed
+      }
+    }`,
   },
 }
 </script>

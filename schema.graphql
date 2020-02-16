@@ -1,0 +1,10 @@
+type TransactionProposal @entity {
+  id: ID!
+  availableTime: BigInt!
+  to: Bytes!
+  value: BigInt!
+  data: Bytes!
+  fpmm: Bytes!
+  isPendingResolution: Boolean!
+  executed: Boolean
+}

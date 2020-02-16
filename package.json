@@ -4,6 +4,12 @@
   "description": "D Corp, a DAO promoting success in business in markets globally and locally.",
   "main": "index.js",
   "scripts": {
+    "migrate": "truffle migrate --reset",
+    "create-local-graph": "graph create --node http://localhost:8020 cag/d-corp",
+    "bootstrap-local-graph": "wait-on tcp:8545 && npm run migrate && wait-on http-get://localhost:8000 && npm run create-local-graph",
+    "codegen-graph": "truffle exec render-templates.js && graph codegen",
+    "build-graph": "npm run codegen-graph && graph build",
+    "deploy-local": "npm run codegen-graph && graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 cag/d-corp",
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
@@ -36,10 +42,13 @@
     "@gnosis.pm/conditional-tokens-market-makers": "^1.7.0",
     "@openzeppelin/contracts": "^2.5.0",
     "@truffle/contract": "^4.1.9",
+    "apollo-boost": "^0.4.7",
     "canonical-weth": "^1.4.0",
     "core-js": "^3.6.4",
+    "graphql": "^14.6.0",
     "project-name": "github:PhABC/uniswap-solidity",
     "vue": "^2.6.11",
+    "vue-apollo": "^3.0.3",
     "web3": "^1.2.6"
   },
   "devDependencies": {
@@ -51,8 +60,11 @@
     "babel-eslint": "^10.0.3",
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.1.2",
+    "fs-extra": "^8.1.0",
+    "mustache": "^4.0.0",
     "truffle": "^5.1.12",
-    "vue-template-compiler": "^2.6.11"
+    "vue-template-compiler": "^2.6.11",
+    "wait-on": "^4.0.0"
   },
   "eslintConfig": {
     "root": true,

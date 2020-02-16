@@ -1,0 +1,28 @@
+specVersion: 0.0.2
+description: D Corp
+repository: https://github.com/cag/d-corp
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: DCorp
+    network: {{ network }}
+    source:
+      address: '{{ DCorp.address }}'
+      abi: DCorp
+      startBlock: {{ DCorp.startBlock }}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      entities:
+        - TransactionProposal
+      abis:
+        - name: DCorp
+          file: ./abis/DCorp.json
+      eventHandlers:
+        - event: TransactionProposed(indexed bytes32,indexed uint256,indexed address,uint256,bytes,address)
+          handler: onTransactionProposed
+        - event: TransactionProposalResolved(indexed bytes32,indexed uint256,indexed address,bool)
+          handler: onTransactionProposalResolved
+      file: ./graph-src/DCorpMapping.ts

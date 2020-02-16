@@ -215,6 +215,12 @@ contract DCorp is ERC20 {
     );
   }
 
+  emit EpochPassed(
+    uint indexed epochEndTime;
+    uint timeResolved;
+    uint resultStonkPrice;
+  );
+
   function poke() external payable {
     uint[] memory payouts = new uint[](2);
     address exchange = address(uniswapExchange);
@@ -242,6 +248,7 @@ contract DCorp is ERC20 {
       if (conditionalTokens.getOutcomeSlotCount(pollConditionId) > 0) {
         conditionalTokens.reportPayouts(bytes32(nextTime), payouts);
       }
+      emit EpochPassed(nextTime, now, currentStonkPrice);
       nextTime = nextTime.add(EPOCH_PERIOD);
     }
     nextMarketCapPollTime = nextTime;
